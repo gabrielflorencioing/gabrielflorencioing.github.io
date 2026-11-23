@@ -16,7 +16,7 @@ window.SH = window.SH || {};
     { route: 'agenda', label: 'Agenda e Caderno', icon: 'calendar', stage: 4, num: 6 },
     { route: 'teacher', label: 'Central do Professor', icon: 'teacher', stage: 5, num: 7, teacherOnly: true },
   ];
-  const AVAILABLE_STAGE = 1;
+  const AVAILABLE_STAGE = 5;
   let escHandler = null;
 
   function navItems(user) {

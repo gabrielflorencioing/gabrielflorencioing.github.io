@@ -49,11 +49,16 @@ window.SH = window.SH || {};
     else if (r === 'reading') {
       if (!parts[1]) SH.reading.renderList(main);
       else SH.reading.renderUnit(main, parts[1], parts[2] || 'read', parts[3]);
-    } else if (r === 'teacher' && user.role !== 'teacher') {
-      location.replace('#/home');
-      return;
-    } else if (['games', 'maps', 'lexicon', 'profile', 'agenda', 'teacher'].includes(r)) SH.upcoming.render(main, r);
-    else notFound(main);
+    } else if (r === 'games') {
+      if (parts[1]) SH.games.renderGame(main, parts[1]); else SH.games.renderList(main);
+    } else if (r === 'maps') SH.maps.renderList(main, parts[1]);
+    else if (r === 'lexicon') SH.lexicon.render(main);
+    else if (r === 'profile') SH.profile.render(main);
+    else if (r === 'agenda') SH.agenda.render(main, parts[1]);
+    else if (r === 'teacher') {
+      if (user.role !== 'teacher') { location.replace('#/home'); return; }
+      if (parts[1]) SH.teacher.renderDossier(main, parts[1]); else SH.teacher.renderOverview(main);
+    } else notFound(main);
 
     if (!(r === 'reading' && parts[3])) window.scrollTo(0, 0);
     main.focus({ preventScroll: true });

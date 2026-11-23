@@ -32,14 +32,6 @@ window.SH = window.SH || {};
     return { unit: worst, review: true };
   }
 
-  /** Unidade mais recente em que o aluno errou um tópico */
-  function unitForTopic(user, topicId) {
-    const attempts = Object.values(user.progress.readings).flatMap((r) => r.attempts)
-      .sort((a, b) => (a.date < b.date ? 1 : -1));
-    const hit = attempts.find((a) => a.answers.some((x) => x.cat === topicId && !x.ok));
-    return hit ? SH.content.unit(hit.unitId) : null;
-  }
-
   function achievements(user, sum) {
     const list = [];
     Object.entries(user.progress.readings).forEach(([id, r]) => {
@@ -117,14 +109,14 @@ window.SH = window.SH || {};
           <section class="card card--attn">
             <div class="card__head"><h2 class="card__title">Pontos de atenção e próximos passos</h2></div>
             ${sum.attention.length ? `<ul class="feed">${sum.attention.slice(0, 3).map((t, i) => {
-              const u = unitForTopic(user, t.id);
+              const links = SH.diagnosis.practiceLinks(user, t.id);
               return `<li class="feed__item feed__item--action">
                 <span class="feed__icon feed__icon--attn">${SH.icon('compass')}</span>
                 <span><strong>${esc(t.label)}</strong><small>Em construção: ${t.ok} de ${t.total} acertos até agora. ${ATTN_TIPS[i % ATTN_TIPS.length]}</small></span>
-                ${u ? `<a class="btn btn--sm btn--soft" href="#/reading/${u.id}/quiz">Praticar agora</a>` : ''}
+                ${links.length ? `<a class="btn btn--sm btn--soft" href="${links[0].href}">Praticar agora</a>` : ''}
               </li>`;
             }).join('')}</ul>
-            <p class="muted small">Na Etapa 4, cada ponto de atenção também abre o mapa mental e o jogo correspondentes.</p>` : `
+            <a class="link small" href="#/profile">Ver diagnóstico completo no Perfil Cognitivo</a>` : `
               <div class="empty"><p><strong>Nenhum ponto de atenção no momento.</strong></p>
               <p class="muted">${sum.attempts.length ? 'Seus resultados estão consistentes. Continue no seu ritmo.' : 'Depois da primeira avaliação, este painel mostra com carinho onde vale focar.'}</p></div>`}
           </section>
@@ -164,7 +156,8 @@ window.SH = window.SH || {};
           <div class="hero-card__txt">
             <p class="eyebrow">${greeting()}, ${esc(SH.util.firstName(user.name))}</p>
             <h1 class="page-title">Sua turma em um olhar.</h1>
-            <p class="lead">Resumo rápido de quem está avançando e de quem precisa de um empurrão. O dossiê completo, o cruzamento de erros e o gerador de pauta chegam na Central do Professor.</p>
+            <p class="lead">Resumo rápido de quem está avançando e de quem precisa de um empurrão. Toque em um aluno para abrir o dossiê completo e a pauta sugerida da próxima aula.</p>
+            <a class="btn btn--primary" href="#/teacher">Abrir Central do Professor ${SH.icon('arrowRight')}</a>
           </div>
           <div class="hero-card__art">${SH.illus('meeting')}</div>
         </section>
@@ -179,7 +172,7 @@ window.SH = window.SH || {};
           <div class="card__head"><h2 class="card__title">Alunos</h2><span class="muted">${studs.length} ${studs.length === 1 ? 'conta' : 'contas'} neste navegador</span></div>
           <ul class="students">
             ${rows.map(({ s, sum, idle }) => `
-              <li class="student">
+              <li><a class="student student--link" href="#/teacher/${s.id}">
                 <span class="avatar avatar--${s.id === SH.store.demoIds.renan ? 'renan' : 'julia'}" aria-hidden="true">${esc(SH.util.initials(s.name))}</span>
                 <div class="student__main">
                   <strong>${esc(s.name)}</strong>
@@ -194,7 +187,7 @@ window.SH = window.SH || {};
                     <strong>${idle == null ? 'nunca' : idle === 0 ? 'hoje' : idle + 'd'}</strong><small>${idle == null || idle > 5 ? 'inativo' : 'último estudo'}</small>
                   </span>
                 </div>
-              </li>`).join('')}
+              </a></li>`).join('')}
           </ul>
         </section>
       </div>`;

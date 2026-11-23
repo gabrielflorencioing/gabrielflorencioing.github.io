@@ -16,6 +16,7 @@ window.SH = window.SH || {};
     profile: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     calendar: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h3"/>',
     teacher: '<path d="M12 3 21 7.5 12 12 3 7.5Z"/><path d="M6.5 9.5V15c1.5 1.5 3.5 2.2 5.5 2.2s4-.7 5.5-2.2V9.5"/><path d="M21 7.5V13"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
@@ -171,6 +172,54 @@ window.SH = window.SH || {};
       '</g>' +
       '<path d="M150 74l40 30M246 48v40M360 84l-34 22" stroke="#fff" stroke-width="2" stroke-dasharray="3 6" stroke-linecap="round" opacity=".7"/>',
       '0 0 480 230'),
+
+    /* Jogo Chunk Builder: blocos de frase sendo encaixados em ordem sobre uma base */
+    builder: () => wrap('Ilustração do Chunk Builder: blocos com pedaços de frase em inglês sendo empilhados na ordem certa',
+      '<rect width="480" height="260" rx="28" fill="#FFF6DD"/>' +
+      '<circle cx="400" cy="60" r="80" fill="#FFEDB8"/>' +
+      '<path d="M28 214h424" ' + S + '/>' +
+      '<g font-family="Nunito, Arial, sans-serif" font-weight="800" font-size="16" fill="' + INK + '" text-anchor="middle">' +
+      '<rect x="60" y="164" width="150" height="50" rx="12" fill="#B9A8FF" ' + S + '/><text x="135" y="195">Could you</text>' +
+      '<rect x="210" y="164" width="130" height="50" rx="12" fill="#9BE7C4" ' + S + '/><text x="275" y="195">send me</text>' +
+      '<rect x="120" y="114" width="150" height="50" rx="12" fill="#fff" ' + S + '/><text x="195" y="145">the report</text>' +
+      '<rect x="292" y="40" width="130" height="50" rx="12" fill="#FF9B85" ' + S + ' transform="rotate(10 357 65)"/><text x="357" y="71" transform="rotate(10 357 65)">by Friday?</text>' +
+      '</g>' +
+      '<path d="M300 112c10-12 22-18 34-16" fill="none" ' + S2 + ' stroke-dasharray="3 7"/>' +
+      '<path d="M296 104l4 9 9-3" fill="none" ' + S2 + '/>'
+    ),
+
+    /* Jogo Context & Preposition: alvo com relógio e calendário (tempo e lugar) */
+    target: () => wrap('Ilustração do Context and Preposition Challenge: alvo central atingido, com relógio e marcador de lugar ao redor',
+      '<rect width="480" height="260" rx="28" fill="#EAF6F0"/>' +
+      '<circle cx="240" cy="128" r="84" fill="#fff" ' + S + '/>' +
+      '<circle cx="240" cy="128" r="56" fill="#D6F0E3" ' + S2 + '/>' +
+      '<circle cx="240" cy="128" r="28" fill="#FFD25C" ' + S2 + '/>' +
+      '<circle cx="240" cy="128" r="6" fill="' + INK + '"/>' +
+      '<path d="M240 128l92-70" ' + S + '/><path d="M322 52l18-6-4 18" fill="#FF9B85" ' + S2 + '/>' +
+      '<circle cx="86" cy="82" r="34" fill="#fff" ' + S + '/><path d="M86 62v20l14 8" fill="none" ' + S + '/>' +
+      '<text x="86" y="140" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="800" font-size="18" fill="' + INK + '">AT 7:30</text>' +
+      '<path d="M398 150c0-20 14-34 30-34s30 14 30 34c0 24-30 52-30 52s-30-28-30-52Z" fill="#B9A8FF" ' + S + ' transform="translate(-30 -16)"/>' +
+      '<circle cx="398" cy="134" r="9" fill="#fff" ' + S2 + '/>' +
+      '<text x="398" y="214" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="800" font-size="18" fill="' + INK + '">IN Dublin</text>' +
+      '<text x="86" y="214" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="800" font-size="18" fill="' + INK + '">ON Monday</text>'
+    ),
+
+    /* Jogo Collocation Match: duas colunas de nós ligadas por conexões */
+    match: () => wrap('Ilustração do Collocation Match: duas colunas de cartões, verbos à esquerda e expressões à direita, ligados por linhas curvas',
+      '<rect width="480" height="260" rx="28" fill="#F1EEFC"/>' +
+      '<g font-family="Nunito, Arial, sans-serif" font-weight="800" font-size="16" fill="' + INK + '" text-anchor="middle">' +
+      '<rect x="40" y="36" width="120" height="44" rx="22" fill="#fff" ' + S2 + '/><text x="100" y="64">make</text>' +
+      '<rect x="40" y="108" width="120" height="44" rx="22" fill="#fff" ' + S2 + '/><text x="100" y="136">take</text>' +
+      '<rect x="40" y="180" width="120" height="44" rx="22" fill="#fff" ' + S2 + '/><text x="100" y="208">run out of</text>' +
+      '<rect x="320" y="36" width="120" height="44" rx="22" fill="#FFD25C" ' + S2 + '/><text x="380" y="64">a look</text>' +
+      '<rect x="320" y="108" width="120" height="44" rx="22" fill="#9BE7C4" ' + S2 + '/><text x="380" y="136">an effort</text>' +
+      '<rect x="320" y="180" width="120" height="44" rx="22" fill="#FF9B85" ' + S2 + '/><text x="380" y="208">time</text>' +
+      '</g>' +
+      '<path d="M160 58C240 58 240 130 320 130" fill="none" ' + S + '/>' +
+      '<path d="M160 130C240 130 240 58 320 58" fill="none" ' + S + '/>' +
+      '<path d="M160 202h160" fill="none" ' + S2 + ' stroke-dasharray="3 8"/>' +
+      '<circle cx="240" cy="94" r="14" fill="#6246EA"/><path d="M233 94l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+    ),
 
     /* Módulos em construção: planta-baixa com compasso */
     blueprint: () => wrap('Ilustração de planta em construção: folha quadriculada com régua, compasso e blocos geométricos sendo encaixados',

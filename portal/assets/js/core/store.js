@@ -197,6 +197,37 @@ window.SH = window.SH || {};
     return attempt;
   }
 
+  /**
+   * Registra uma partida de jogo.
+   * @param {{score:number,total:number,maxCombo:number,items:{cat:string,ok:boolean}[]}} r
+   */
+  function applyGameResult(user, gameId, r, when = new Date()) {
+    const g = user.progress.games[gameId] || { plays: 0, bestScore: 0, bestTotal: r.total, totalXp: 0, history: [] };
+    const xp = r.score * 8 + Math.max(0, r.maxCombo - 1) * 3;
+    const entry = { id: U.uid('gm'), date: when.toISOString(), score: r.score, total: r.total, maxCombo: r.maxCombo, xp };
+    g.plays += 1;
+    g.history.push(entry);
+    if (r.score / r.total >= g.bestScore / (g.bestTotal || r.total)) { g.bestScore = r.score; g.bestTotal = r.total; }
+    g.totalXp += xp;
+    g.lastPlayed = entry.date;
+    user.progress.games[gameId] = g;
+    user.progress.xp += xp;
+    (r.items || []).forEach((a) => {
+      const t = user.progress.topicStats[a.cat] || { ok: 0, total: 0, lastWrongAt: null };
+      t.total += 1;
+      if (a.ok) t.ok += 1; else t.lastWrongAt = entry.date;
+      user.progress.topicStats[a.cat] = t;
+    });
+    markActivity(user, when);
+    return entry;
+  }
+
+  function recordGame(userId, gameId, result) {
+    let entry = null;
+    updateUser(userId, (u) => { entry = applyGameResult(u, gameId, result); });
+    return entry;
+  }
+
   function recordReading(userId, unit, chosen) {
     let attempt = null;
     updateUser(userId, (u) => { attempt = applyReadingAttempt(u, unit, chosen); });
@@ -276,6 +307,26 @@ window.SH = window.SH || {};
         { unit: 'a2-memories-lisbon', daysAgo: 3, wrong: ['q3', 'q4', 'q5', 'q6'] },
       ],
       extraDays: [20, 19, 15, 14, 8, 2, 1],
+      games: [
+        { game: 'context-challenge', daysAgo: 2, score: 6, total: 10, maxCombo: 3,
+          wrong: ['prepositions', 'prepositions', 'prepositions', 'past-simple'], right: ['verb-choice', 'verb-choice', 'verb-choice', 'prepositions', 'prepositions', 'verb-choice'] },
+      ],
+      notes: [
+        { daysAgo: 2, title: 'IN ou ON no transporte?', topic: 'Preposições', shared: true,
+          body: 'Fiquei em dúvida: por que é "on the train" mas "in a taxi"? E no Uber, qual eu uso?' },
+        { daysAgo: 6, title: 'Chunk que gostei', topic: 'Chunks', shared: false,
+          body: '"I\'m running late" serve para avisar que estou atrasada. Usei hoje com minha chefe por mensagem.' },
+      ],
+      tasks: [
+        { title: 'Reler "The Day I Missed My Train in Lisbon" e refazer a avaliação', priority: 'high', done: false },
+        { title: 'Ouvir o Word Bank da unidade A2 em velocidade pausada', priority: 'medium', done: true },
+        { title: 'Escrever 5 frases sobre minha última viagem no Past Simple', priority: 'medium', done: false },
+      ],
+      events: [
+        { inDays: 2, time: '19:00', type: 'class', title: 'Aula com o Gabriel', note: 'Levar dúvida sobre preposições de transporte.' },
+        { inDays: 5, time: '09:00', type: 'deadline', title: 'Entregar frases de viagem no Past Simple', note: '' },
+      ],
+      lexicon: ['lx-t3', 'lx-f2'],
     },
     renan: {
       id: 'demo-renan', role: 'student', demo: true,
@@ -288,6 +339,33 @@ window.SH = window.SH || {};
         { unit: 'b2-opinions-abroad', daysAgo: 1, wrong: ['q2', 'q3', 'q4'] },
       ],
       extraDays: [44, 41, 37, 33, 29, 26, 22, 19, 15, 14, 13, 12, 11, 10, 8, 7, 6, 5, 4, 3, 2, 0],
+      games: [
+        { game: 'chunk-builder', daysAgo: 12, score: 4, total: 6, maxCombo: 2, wrong: ['conditionals', 'question-formation'], right: ['word-order', 'modals-politeness', 'frequency-adverbs', 'past-continuous'] },
+        { game: 'chunk-builder', daysAgo: 4, score: 5, total: 6, maxCombo: 4, wrong: ['conditionals'], right: ['word-order', 'modals-politeness', 'frequency-adverbs', 'question-formation', 'past-continuous'] },
+        { game: 'context-challenge', daysAgo: 6, score: 9, total: 10, maxCombo: 7, wrong: ['verb-choice'], right: ['prepositions', 'prepositions', 'prepositions', 'prepositions', 'prepositions', 'verb-choice', 'verb-choice', 'verb-choice', 'past-simple'] },
+        { game: 'collocation-match', daysAgo: 3, score: 10, total: 12, maxCombo: 6, wrong: ['collocations', 'collocations'], right: Array(10).fill('collocations') },
+      ],
+      notes: [
+        { daysAgo: 1, title: '"If I would have known" está errado?', topic: 'Condicionais', shared: true,
+          body: 'No texto do Thiago aparece "If I had known... I would have relaxed". Ouço muita gente dizer "if I would have known" em calls. Posso usar?' },
+        { daysAgo: 3, title: 'reach out to x contact', topic: 'Phrasal Verbs', shared: true,
+          body: 'Qual a diferença de tom entre "reach out to" e "contact" num e-mail para cliente?' },
+        { daysAgo: 8, title: 'Frase pronta para reunião', topic: 'Modais de polidez', shared: false,
+          body: '"Would it be possible to push the deadline to Friday?" Usei com o time de Toronto e funcionou muito bem.' },
+      ],
+      tasks: [
+        { title: 'Escrever um e-mail de follow-up usando follow up on e keep you posted', priority: 'high', done: false },
+        { title: 'Revisar o mapa mental de tempos verbais (parte de hipóteses)', priority: 'high', done: false },
+        { title: 'Jogar Collocation Match até fazer 12 de 12', priority: 'low', done: false },
+        { title: 'Refazer a avaliação da unidade B1', priority: 'medium', done: true },
+      ],
+      events: [
+        { inDays: 1, time: '08:30', type: 'class', title: 'Aula com o Gabriel', note: 'Simulação de reunião com o cliente.' },
+        { inDays: 3, time: '14:00', type: 'reminder', title: 'Call real com o time de Toronto', note: 'Usar I see your point e just to clarify.' },
+        { inDays: 6, time: '18:00', type: 'deadline', title: 'Enviar texto de opinião sobre trabalho remoto', note: '' },
+      ],
+      lexicon: ['lx-w1', 'lx-w3', 'lx-w4', 'lx-c2'],
+      teacherNotes: 'Muito bom em compreensão e com repertório corporativo crescente. Trava em condicionais sob pressão: trabalhar hipóteses com cenários reais do trabalho dele.',
     },
   };
 
@@ -298,6 +376,23 @@ window.SH = window.SH || {};
       createdAt: U.daysAgoDate(spec.createdDaysAgo, 10).toISOString(),
     });
     (spec.extraDays || []).forEach((d) => markActivity(user, U.daysAgoDate(d, d === 0 ? Math.min(new Date().getHours(), 8) : 20, 10)));
+    (spec.games || []).forEach((g) => {
+      const items = g.right.map((cat) => ({ cat, ok: true })).concat(g.wrong.map((cat) => ({ cat, ok: false })));
+      applyGameResult(user, g.game, { score: g.score, total: g.total, maxCombo: g.maxCombo, items }, U.daysAgoDate(g.daysAgo, 20, 15));
+    });
+    (spec.notes || []).forEach((n) => {
+      const iso = U.daysAgoDate(n.daysAgo, 21).toISOString();
+      user.notebook.push({ id: U.uid('nt'), title: n.title, topic: n.topic, body: n.body, shared: n.shared, createdAt: iso, updatedAt: iso });
+    });
+    (spec.tasks || []).forEach((t, i) => {
+      user.tasks.push({ id: U.uid('tk'), title: t.title, priority: t.priority, done: t.done,
+        createdAt: U.daysAgoDate(5 - i, 10).toISOString(), doneAt: t.done ? U.daysAgoDate(1, 18).toISOString() : null });
+    });
+    (spec.events || []).forEach((e) => {
+      user.events.push({ id: U.uid('ev'), title: e.title, date: U.dayKey(U.daysAgoDate(-e.inDays)), time: e.time, type: e.type, note: e.note });
+    });
+    user.savedLexicon = (spec.lexicon || []).slice();
+    user.teacherNotes = spec.teacherNotes || '';
     (spec.history || []).forEach((h) => {
       const unit = SH.content.unit(h.unit);
       if (!unit) return;
@@ -308,10 +403,13 @@ window.SH = window.SH || {};
   }
 
   /** Garante que as 3 contas demo existam (sem sobrescrever o progresso já feito nelas) */
+  const DEMO_VERSION = 2;
   function ensureDemoUsers() {
+    const outdated = state.demoVersion !== DEMO_VERSION;
     Object.values(DEMO).forEach((spec) => {
-      if (!state.users[spec.id]) state.users[spec.id] = buildDemoUser(spec, 'demo');
+      if (!state.users[spec.id] || outdated) state.users[spec.id] = buildDemoUser(spec, 'demo');
     });
+    state.demoVersion = DEMO_VERSION;
   }
 
   /** Recria do zero as contas demo (útil para reapresentar o portal) */
@@ -328,7 +426,7 @@ window.SH = window.SH || {};
     onChange: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
     getUser, currentUser, allUsers, students, findByEmail, setSession,
     createStudent, authenticate, updateUser,
-    recordReading, summary, streak, markActivity,
+    recordReading, recordGame, summary, streak, markActivity,
     exportJSON, inspectBackup, importBackup, resetDemoUsers,
     demoIds: { teacher: DEMO.teacher.id, julia: DEMO.julia.id, renan: DEMO.renan.id },
   };

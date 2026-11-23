@@ -38,6 +38,9 @@ window.SH = window.SH || {};
     'modals-politeness': { label: 'Modais de polidez', skill: 'grammar' },
     'conditionals': { label: 'Condicionais', skill: 'grammar' },
     'used-to': { label: 'Used to (hábitos no passado)', skill: 'grammar' },
+    'word-order': { label: 'Ordem natural da frase', skill: 'grammar' },
+    'question-formation': { label: 'Formação de perguntas', skill: 'grammar' },
+    'verb-choice': { label: 'Verbos que confundem (make/do, say/tell)', skill: 'lexical' },
   };
 
   const QTYPES = {
