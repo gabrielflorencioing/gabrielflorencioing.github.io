@@ -45,6 +45,11 @@ window.SH = window.SH || {};
     const { route: r, parts } = parse();
     document.title = 'Students Hub · Portal do Aluno | Gabriel Florencio';
 
+    if (SH.backend.cloud && user.role === 'teacher' && (r === 'home' || r === 'teacher')) {
+      const at = location.hash;
+      SH.backend.refreshClass().then((changed) => { if (changed && location.hash === at && !document.querySelector('.modal')) route(); });
+    }
+
     if (r === 'home') SH.home.render(main);
     else if (r === 'reading') {
       if (!parts[1]) SH.reading.renderList(main);
@@ -76,6 +81,10 @@ window.SH = window.SH || {};
 
   /** Link de acesso individual: #/convite/<token> */
   function handleInvite() {
+    if (SH.backend.cloud) {
+      if (location.hash.indexOf('#/convite/') === 0) history.replaceState(null, '', location.pathname + location.search);
+      return false;
+    }
     const m = location.hash.match(/^#\/convite\/([A-Za-z0-9_-]+)/);
     if (!m) return false;
     history.replaceState(null, '', location.pathname + location.search);
@@ -128,8 +137,11 @@ window.SH = window.SH || {};
     onLeave: (fn) => leaveHooks.push(fn),
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    SH.store.load();
+  document.addEventListener('DOMContentLoaded', async () => {
+    SH.store.load({ cloud: SH.backend.cloud });
+    await SH.backend.init();
     boot();
+    const u = SH.store.currentUser();
+    if (u && u.mustChangePassword) setTimeout(() => SH.auth.promptNewPassword(u), 400);
   });
 })(window.SH);

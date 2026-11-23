@@ -65,14 +65,13 @@ window.SH = window.SH || {};
   /* =========================================================
    * CADASTRO DE ALUNO E CREDENCIAIS INDIVIDUAIS
    * ========================================================= */
-  const inviteURL = (id) => location.href.split('#')[0] + '#/convite/' + SH.store.buildInvite(id);
 
   function registerModal(main) {
     const goals = Object.entries(SH.labels.GOALS).filter(([k]) => k !== 'teaching');
     const m = U.modal({
       title: 'Cadastrar novo aluno',
       html: `
-        <p class="muted">Defina o login e a senha individuais. Depois do cadastro você recebe a mensagem pronta e o link de acesso para enviar ao aluno.</p>
+        <p class="muted">Defina o login e a senha individuais. Depois do cadastro você recebe a mensagem pronta ${SH.backend.cloud ? 'com o endereço do portal' : 'e o link de acesso'} para enviar ao aluno.</p>
         <form class="form form--tight" id="rg-form" novalidate>
           <div class="field" data-field="rg-name"><label for="rg-name">Nome completo</label><input id="rg-name" autocomplete="off" maxlength="80"><p class="field__error" role="alert"></p></div>
           <div class="field" data-field="rg-email"><label for="rg-email">E-mail (login do aluno)</label><input id="rg-email" type="email" inputmode="email" autocomplete="off"><p class="field__error" role="alert"></p></div>
@@ -103,17 +102,20 @@ window.SH = window.SH || {};
             if (name.split(/\s+/).filter(Boolean).length < 2) { err('rg-name', 'Digite nome e sobrenome.'); bad = true; }
             if (!U.isEmail(email)) { err('rg-email', 'Digite um e-mail válido.'); bad = true; }
             else if (SH.store.findByEmail(email)) { err('rg-email', 'Já existe uma conta com este e-mail.'); bad = true; }
+            const submit = m.el.querySelector('.modal__foot .btn--primary');
             if (password.length < 6) { err('rg-pass', 'A senha precisa ter pelo menos 6 caracteres.'); bad = true; }
             if (bad) return false;
             const mustChange = f.querySelector('#rg-change').checked;
-            SH.store.createStudent({
-              name, email, password, createdBy: 'teacher',
+            submit.disabled = true; submit.textContent = 'Cadastrando...';
+            SH.backend.createStudent({
+              name, email, password, mustChange,
               level: val('rg-level'), goal: val('rg-goal'), location: val('rg-loc'),
-            }).then((u) => {
-              if (!mustChange) SH.store.updateUser(u.id, (x) => { x.mustChangePassword = false; });
+            }).catch(() => ({ ok: false, message: 'Sem conexão com o servidor. Verifique sua internet.' })).then((res) => {
+              submit.disabled = false; submit.textContent = 'Cadastrar aluno';
+              if (!res.ok) { err(res.reason === 'exists' ? 'rg-email' : 'rg-pass', res.message); return; }
               close();
               renderOverview(main);
-              showAccess(u.id, password, 'Aluno cadastrado');
+              if (res.user) setTimeout(() => showAccess(res.user.id, password, 'Aluno cadastrado', res.needsConfirm), 260);
             });
             return false;
           },
@@ -129,11 +131,13 @@ window.SH = window.SH || {};
   }
 
   /** Mostra as credenciais e o link de acesso individual, com mensagem pronta para enviar */
-  function showAccess(id, password, title = 'Acesso do aluno') {
+  function showAccess(id, password, title = 'Acesso do aluno', needsConfirm = false) {
     const s = SH.store.getUser(id);
-    const link = inviteURL(id);
+    const cloud = SH.backend.cloud;
+    const link = SH.backend.accessLink(id);
     const msg = 'Olá, ' + U.firstName(s.name) + '! Seu acesso ao Students Hub, o portal do aluno da Mentoria Gabriel Florencio, está pronto.\n\n' +
-      '1. Abra este link no seu celular ou computador: ' + link + '\n' +
+      (needsConfirm ? '0. Antes de tudo, confirme seu e-mail pelo link que você vai receber.\n' : '') +
+      '1. Abra o portal no seu celular ou computador: ' + link + '\n' +
       '2. Entre com o e-mail: ' + s.email + '\n' +
       (password ? '3. Senha: ' + password + '\n' : '3. Use a senha que combinamos.\n') +
       (s.mustChangePassword ? '\nNo primeiro acesso, você vai criar uma senha só sua.' : '') + '\n\nBons estudos!';
@@ -150,9 +154,12 @@ window.SH = window.SH || {};
           <li><span>Login (e-mail)</span><strong>${esc(s.email)}</strong></li>
           <li><span>Senha</span><strong class="cred__pass">${password ? esc(password) : 'não exibida (já definida)'}</strong></li>
         </ul>
-        <div class="field"><label for="acc-link">Link de acesso individual</label><input id="acc-link" readonly value="${esc(link)}"></div>
-        <p class="note">${SH.icon('info')}<span>Envie o link ao aluno. Ao abri-lo, a conta dele é ativada no aparelho e ele entra com o e-mail e a senha acima. ${password ? 'Anote a senha agora: por segurança ela fica guardada apenas de forma criptografada e não aparece de novo.' : ''}</span></p>
-        ${location.protocol === 'file:' ? `<p class="note note--warn">${SH.icon('alert')}<span>O portal está aberto como arquivo no seu computador, então este link só funciona aqui. Publique a pasta do portal online (GitHub Pages, Netlify ou Vercel) para o link abrir no aparelho do aluno.</span></p>` : ''}
+        <div class="field"><label for="acc-link">${cloud ? 'Endereço do portal' : 'Link de acesso individual'}</label><input id="acc-link" readonly value="${esc(link)}"></div>
+        <p class="note">${SH.icon('info')}<span>${cloud
+          ? 'O aluno entra pelo endereço do portal, em qualquer aparelho, com o e-mail e a senha acima. Tudo o que ele fizer aparece no seu painel.'
+          : 'Envie o link ao aluno. Ao abri-lo, a conta dele é ativada no aparelho e ele entra com o e-mail e a senha acima.'} ${password ? 'Anote a senha agora: por segurança ela fica guardada apenas de forma criptografada e não aparece de novo.' : ''}</span></p>
+        ${needsConfirm ? `<p class="note note--warn">${SH.icon('alert')}<span>A confirmação de e-mail está ativa no Supabase: o aluno precisa clicar no e-mail de confirmação antes do primeiro login. Para dispensar isso, desative "Confirm email" em Authentication, Providers, Email.</span></p>` : ''}
+        ${!cloud && location.protocol === 'file:' ? `<p class="note note--warn">${SH.icon('alert')}<span>O portal está aberto como arquivo no seu computador, então este link só funciona aqui. Publique a pasta do portal online (GitHub Pages, Netlify ou Vercel) para o link abrir no aparelho do aluno.</span></p>` : ''}
         <a class="btn btn--ghost btn--sm wa-link" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Enviar pelo WhatsApp</a>`,
       actions: [
         { label: 'Copiar link', variant: 'ghost', onClick: () => { copy(link, 'Link copiado.'); return false; } },
@@ -291,7 +298,7 @@ window.SH = window.SH || {};
             <li><span>Senha</span><strong>${s.mustChangePassword ? 'Temporária, aguardando o aluno criar a dele' : s.passwordIssuedAt ? 'Definida em ' + U.fmtDate(s.passwordIssuedAt) : 'Definida'}</strong></li>
           </ul>
           <div class="access-actions">
-            <button class="btn btn--soft btn--sm" data-acc="link">${SH.icon('arrowRight')}Gerar link de acesso</button>
+            <button class="btn btn--soft btn--sm" data-acc="link">${SH.icon('arrowRight')}${SH.backend.cloud ? 'Ver dados de acesso' : 'Gerar link de acesso'}</button>
             <button class="btn btn--soft btn--sm" data-acc="reset">${SH.icon('refresh')}Redefinir senha</button>
             <button class="btn btn--ghost btn--sm btn--danger" data-acc="remove">${SH.icon('close')}Remover aluno</button>
           </div>
@@ -327,7 +334,10 @@ window.SH = window.SH || {};
           actions: [
             { label: 'Cancelar', variant: 'ghost' },
             { label: 'Gerar nova senha', variant: 'primary', onClick: (close) => {
-              SH.store.setPassword(s.id, pw, true).then(() => { close(); renderDossier(main, s.id); showAccess(s.id, pw, 'Nova senha gerada'); });
+              SH.backend.resetStudentPassword(s.id, pw).catch(() => ({ ok: false, message: 'Sem conexão com o servidor.' })).then((r) => {
+                if (!r.ok) { U.toast(r.message, 'err'); return; }
+                close(); renderDossier(main, s.id); setTimeout(() => showAccess(s.id, pw, 'Nova senha gerada'), 260);
+              });
               return false;
             } },
           ],
@@ -339,7 +349,13 @@ window.SH = window.SH || {};
           html: `<p>A conta de <strong>${esc(s.name)}</strong> e todo o histórico dela serão apagados deste navegador. Isso não pode ser desfeito.</p><p class="note note--warn">${SH.icon('alert')}<span>Se quiser guardar o histórico, use "Exportar Dados (JSON)" no menu antes de remover.</span></p>`,
           actions: [
             { label: 'Cancelar', variant: 'ghost' },
-            { label: 'Remover definitivamente', variant: 'danger', onClick: () => { SH.store.removeStudent(s.id); U.toast('Aluno removido.', 'info'); location.hash = '#/teacher'; } },
+            { label: 'Remover definitivamente', variant: 'danger', onClick: (close) => {
+              SH.backend.removeStudent(s.id).catch(() => ({ ok: false, message: 'Sem conexão com o servidor.' })).then((r) => {
+                if (!r.ok) { U.toast(r.message || 'Não foi possível remover.', 'err'); return; }
+                close(); U.toast('Aluno removido.', 'info'); location.hash = '#/teacher';
+              });
+              return false;
+            } },
           ],
         });
       }

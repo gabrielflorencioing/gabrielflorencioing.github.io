@@ -12,6 +12,7 @@ window.SH = window.SH || {};
   ];
 
   function render(root, { mode = 'login', email = '', notice = '' } = {}) {
+    if (mode === 'signup' && !SH.backend.allowSelfSignup) mode = 'login';
     document.title = 'Entrar · Students Hub | Gabriel Florencio';
     const demoUsers = SH.store.demoIds;
     root.innerHTML = `
@@ -37,12 +38,19 @@ window.SH = window.SH || {};
           <div class="auth__card">
             <div class="seg" role="tablist" aria-label="Acesso">
               <button class="seg__btn ${mode === 'login' ? 'is-active' : ''}" role="tab" aria-selected="${mode === 'login'}" data-mode="login">Entrar</button>
-              <button class="seg__btn ${mode === 'signup' ? 'is-active' : ''}" role="tab" aria-selected="${mode === 'signup'}" data-mode="signup">Criar conta de aluno</button>
+              ${SH.backend.allowSelfSignup ? `<button class="seg__btn ${mode === 'signup' ? 'is-active' : ''}" role="tab" aria-selected="${mode === 'signup'}" data-mode="signup">Criar conta de aluno</button>` : ''}
             </div>
             ${notice ? `<p class="note note--ok">${SH.icon('check')}<span>${notice}</span></p>` : ''}
             <div class="auth__form-host">${mode === 'login' ? loginForm(email) : signupForm()}</div>
           </div>
 
+          ${SH.backend.cloud ? `
+          <div class="auth__demo">
+            <div class="auth__demo-head">
+              <h2>Primeiro acesso?</h2>
+              <p>Use o e-mail e a senha que o professor Gabriel enviou para você. Seu progresso fica salvo na nuvem e aparece em qualquer aparelho em que você entrar.</p>
+            </div>
+          </div>` : `
           <div class="auth__demo">
             <div class="auth__demo-head">
               <h2>Acesso rápido de demonstração</h2>
@@ -64,7 +72,7 @@ window.SH = window.SH || {};
               }).join('')}
             </div>
             <p class="auth__fineprint">Contas demo também aceitam login manual com a senha <code>${SH.store.DEMO_PASSWORD}</code>. Seus dados ficam salvos neste navegador e podem ser exportados a qualquer momento.</p>
-          </div>
+          </div>`}
         </section>
       </div>`;
 
@@ -156,12 +164,15 @@ window.SH = window.SH || {};
     setError(form, 'login-pass', '');
     if (!SH.util.isEmail(email)) return setError(form, 'login-email', 'Digite um e-mail válido.');
     if (!password) return setError(form, 'login-pass', 'Digite sua senha.');
-    const res = await SH.store.authenticate(email, password);
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const res = await SH.backend.login(email, password).catch((e) => ({ ok: false, reason: 'other', message: 'Sem conexão com o servidor. Verifique sua internet.' }));
+    btn.disabled = false;
     if (!res.ok) {
       if (res.reason === 'email') return setError(form, 'login-email', 'Não encontramos uma conta com este e-mail neste navegador.');
-      return setError(form, 'login-pass', 'Senha incorreta. Confira e tente de novo.');
+      if (res.reason === 'password') return setError(form, 'login-pass', 'Senha incorreta. Confira e tente de novo.');
+      return setError(form, 'login-pass', res.message || 'E-mail ou senha incorretos.');
     }
-    SH.store.setSession(res.user.id);
     SH.app.enter();
   }
 
@@ -178,17 +189,26 @@ window.SH = window.SH || {};
     let bad = false;
     if (data.name.split(/\s+/).filter(Boolean).length < 2) { setError(form, 'su-name', 'Digite nome e sobrenome.'); bad = true; }
     if (!SH.util.isEmail(data.email)) { setError(form, 'su-email', 'Digite um e-mail válido.'); bad = true; }
-    else if (SH.store.findByEmail(data.email)) { setError(form, 'su-email', 'Já existe uma conta com este e-mail. Use a aba Entrar.'); bad = true; }
     if (data.password.length < 6) { setError(form, 'su-pass', 'A senha precisa ter pelo menos 6 caracteres.'); bad = true; }
     if (bad) {
       const firstErr = form.querySelector('.has-error input');
       if (firstErr) firstErr.focus();
       return;
     }
-    const user = await SH.store.createStudent(data);
-    SH.store.setSession(user.id);
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const res = await SH.backend.signup(data).catch(() => ({ ok: false, reason: 'other', message: 'Sem conexão com o servidor. Verifique sua internet.' }));
+    btn.disabled = false;
+    if (!res.ok) {
+      if (res.reason === 'exists') return setError(form, 'su-email', res.message);
+      return setError(form, 'su-pass', res.message);
+    }
+    if (res.needsConfirm) {
+      render(document.getElementById('app'), { email: data.email, notice: 'Conta criada! Enviamos um e-mail de confirmação para ' + SH.util.esc(data.email) + '. Confirme pelo link e depois entre aqui.' });
+      return;
+    }
     SH.app.enter();
-    SH.util.toast('Conta criada. Bem-vinda(o) ao Students Hub, ' + SH.util.firstName(user.name) + '!', 'ok');
+    SH.util.toast('Conta criada. Bem-vinda(o) ao Students Hub, ' + SH.util.firstName(res.user.name) + '!', 'ok');
   }
 
   /** Pede ao aluno que troque a senha temporária criada pelo professor */
@@ -211,7 +231,10 @@ window.SH = window.SH || {};
             setError(form, 'np1', ''); setError(form, 'np2', '');
             if (a.length < 6) { setError(form, 'np1', 'A senha precisa ter pelo menos 6 caracteres.'); return false; }
             if (a !== b) { setError(form, 'np2', 'As senhas não são iguais.'); return false; }
-            SH.store.setPassword(user.id, a, false).then(() => { close(); SH.util.toast('Senha pessoal criada com sucesso.', 'ok'); });
+            SH.backend.changeOwnPassword(a).then((r) => {
+              if (!r.ok) { setError(form, 'np2', r.message); return; }
+              close(); SH.util.toast('Senha pessoal criada com sucesso.', 'ok');
+            });
             return false;
           },
         },

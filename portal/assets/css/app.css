@@ -1047,3 +1047,11 @@ i.ev--reminder, .ev--reminder .ev__date { background: #2E9E6B; }
   .pass-row .btn { width: 100%; }
   .page-head > .btn { width: 100%; }
 }
+
+/* ---------- Status de sincronização (modo nuvem) ---------- */
+.sync { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; font-size: .8rem; font-weight: 800; background: var(--surface); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.sync__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.sync.is-saving .sync__dot { background: var(--yel); animation: pulse 1s ease-in-out infinite; }
+.sync.is-error { color: var(--err); border-color: var(--err-line); }
+.sync.is-error .sync__dot { background: var(--err); }
+@media (max-width: 760px) { .sync__txt { display: none; } .sync { width: 34px; justify-content: center; padding: 0; } }

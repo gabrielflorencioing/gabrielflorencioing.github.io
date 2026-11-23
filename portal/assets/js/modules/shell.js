@@ -64,6 +64,7 @@ window.SH = window.SH || {};
             <button class="icon-btn topbar__menu" data-action="open-nav" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">${SH.icon('menu')}</button>
             <div class="topbar__title" id="topbar-title"></div>
             <div class="topbar__right">
+              ${SH.backend.statusHTML()}
               ${user.role === 'student' ? `
               <div class="pill pill--xp" title="XP acumulado">${SH.icon('star')}<span id="top-xp">${user.progress.xp}</span><span class="pill__unit">XP</span></div>
               <div class="pill pill--streak" title="Sequência de dias estudando">${SH.icon('flame')}<span id="top-streak">${SH.store.streak(user)}</span><span class="pill__unit">dias</span></div>` : `
@@ -79,8 +80,8 @@ window.SH = window.SH || {};
                     <small>${esc(user.email)}</small>
                   </div>
                   <button role="menuitem" class="usermenu__item" data-action="export">${SH.icon('download')}<span>Exportar Dados (JSON)</span></button>
-                  <button role="menuitem" class="usermenu__item" data-action="import">${SH.icon('upload')}<span>Importar Backup</span></button>
-                  ${user.demo ? `<button role="menuitem" class="usermenu__item" data-action="reset-demo">${SH.icon('refresh')}<span>Restaurar perfis demo</span></button>` : ''}
+                  ${SH.backend.cloud ? '' : `<button role="menuitem" class="usermenu__item" data-action="import">${SH.icon('upload')}<span>Importar Backup</span></button>`}
+                  ${user.demo && !SH.backend.cloud ? `<button role="menuitem" class="usermenu__item" data-action="reset-demo">${SH.icon('refresh')}<span>Restaurar perfis demo</span></button>` : ''}
                   <hr>
                   <button role="menuitem" class="usermenu__item usermenu__item--danger" data-action="logout">${SH.icon('logout')}<span>Sair</span></button>
                 </div>
@@ -221,10 +222,10 @@ window.SH = window.SH || {};
     });
   }
 
-  function logout() {
+  async function logout() {
     SH.speech.stop();
-    SH.store.setSession(null);
-    location.hash = '';
+    await SH.backend.logout();
+    history.replaceState(null, '', location.pathname + location.search);
     SH.app.boot();
   }
 

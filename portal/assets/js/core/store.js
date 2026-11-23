@@ -11,6 +11,8 @@ window.SH = window.SH || {};
 
   let state = null;
   let persistent = true;
+  let storageKey = KEY;
+  let cloudMode = false;
   const listeners = new Set();
 
   /* ---------- Esquema ---------- */
@@ -61,7 +63,7 @@ window.SH = window.SH || {};
   function save() {
     state.updatedAt = new Date().toISOString();
     try {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(state));
       persistent = true;
     } catch (e) {
       persistent = false;
@@ -69,16 +71,19 @@ window.SH = window.SH || {};
     listeners.forEach((fn) => fn(state));
   }
 
-  function load() {
+  /** @param {{cloud?: boolean}} opts  no modo nuvem usa um cache separado e não cria perfis demo */
+  function load(opts = {}) {
+    cloudMode = !!opts.cloud;
+    storageKey = cloudMode ? KEY + '_cloud' : KEY;
     let raw = null;
-    try { raw = localStorage.getItem(KEY); } catch (e) { persistent = false; }
+    try { raw = localStorage.getItem(storageKey); } catch (e) { persistent = false; }
     let parsed = null;
     if (raw) {
       try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
     }
     state = isValidState(parsed) ? parsed : blankState();
     Object.keys(state.users).forEach((id) => { state.users[id] = normalizeUser(state.users[id]); });
-    ensureDemoUsers();
+    if (!cloudMode) ensureDemoUsers();
     if (state.session.userId && !state.users[state.session.userId]) state.session.userId = null;
     save();
     return state;
@@ -128,6 +133,21 @@ window.SH = window.SH || {};
       x.passwordIssuedAt = new Date().toISOString();
       x.mustChangePassword = mustChange;
     });
+  }
+
+  /** Substitui as contas em memória pelos dados vindos do servidor */
+  function hydrate(users, sessionId) {
+    state.users = {};
+    users.forEach((u) => { state.users[u.id] = normalizeUser(u); });
+    state.session.userId = state.users[sessionId] ? sessionId : null;
+    save();
+  }
+
+  /** Limpa as contas deste aparelho (logout no modo nuvem) */
+  function clearUsers() {
+    state.users = {};
+    state.session.userId = null;
+    save();
   }
 
   function removeStudent(id) {
@@ -496,7 +516,7 @@ window.SH = window.SH || {};
     get persistent() { return persistent; },
     onChange: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
     getUser, currentUser, allUsers, students, findByEmail, setSession,
-    createStudent, authenticate, updateUser, setPassword, removeStudent, buildInvite, parseInvite, acceptInvite,
+    createStudent, authenticate, updateUser, setPassword, hydrate, clearUsers, removeStudent, buildInvite, parseInvite, acceptInvite,
     recordReading, recordGame, summary, streak, markActivity,
     exportJSON, inspectBackup, importBackup, resetDemoUsers,
     demoIds: { teacher: DEMO.teacher.id, julia: DEMO.julia.id, renan: DEMO.renan.id },

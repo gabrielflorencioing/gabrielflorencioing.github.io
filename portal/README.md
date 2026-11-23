@@ -4,10 +4,11 @@ Aplicação web estática, modular e sem etapa de build (HTML, CSS e JavaScript 
 
 ## Dependências e recursos
 
-**Nenhum pacote npm é necessário.** Tudo que o portal usa já está integrado no código:
+**Nenhum pacote npm é necessário.** A única biblioteca externa (supabase-js) já está incluída no projeto. Tudo que o portal usa já está integrado no código:
 
 | Recurso | Tipo | Para que serve | Já integrado em |
 |---|---|---|---|
+| supabase-js 2.45.4 (MIT) | Biblioteca incluída em `assets/vendor/` | Login e banco na nuvem (só é usada se `config.js` estiver preenchido) | `index.html`, `core/backend.js` |
 | Google Fonts: Fredoka e Nunito | Fonte web (CDN) | Títulos e texto da identidade visual | `index.html` (`<link>`). Sem internet, cai para fontes do sistema |
 | `localStorage` | API do navegador | Persistência do `AppState` na chave `gabriel_florencio_students_hub_v1` | `core/store.js` |
 | Web Speech API (`speechSynthesis`) | API do navegador | Áudio dos chunks, exemplos e leitura do texto | `core/speech.js` |
@@ -33,6 +34,9 @@ O portal funciona abrindo o arquivo direto. Para um servidor local:
 5. **Perfil Cognitivo:** indicadores por área, gráfico radar, conquistas e pontos de atenção com atalhos de prática.
 6. **Agenda, Tarefas e Caderno:** calendário, action plan com prioridades e anotações compartilháveis com o professor.
 7. **Central do Professor:** visão da turma, dossiê individual, mapa de fragilidades, pauta automática e notas privadas.
+
+## Modo nuvem (Supabase)
+Para que cada aluno entre de qualquer aparelho e o progresso apareça no painel do professor, siga **`supabase/SETUP.md`**. Resumo: rodar `supabase/schema.sql` no SQL Editor, preencher `config.js` com a URL e a chave anon e publicar a pasta `portal/`. Com `config.js` vazio, o portal segue no modo local.
 
 ## Cadastro de alunos pelo professor
 Na **Central do Professor**, o botão **Cadastrar aluno** cria a conta com login (e-mail) e senha individuais. Em seguida o portal mostra:
