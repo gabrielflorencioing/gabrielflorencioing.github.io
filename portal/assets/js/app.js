@@ -74,9 +74,33 @@ window.SH = window.SH || {};
       </div></div>`;
   }
 
+  /** Link de acesso individual: #/convite/<token> */
+  function handleInvite() {
+    const m = location.hash.match(/^#\/convite\/([A-Za-z0-9_-]+)/);
+    if (!m) return false;
+    history.replaceState(null, '', location.pathname + location.search);
+    const data = SH.store.parseInvite(m[1]);
+    SH.speech.stop();
+    SH.store.setSession(null);
+    shellUserId = null;
+    if (!data) {
+      SH.auth.render(root());
+      SH.util.toast('Este link de acesso é inválido ou está incompleto. Peça um novo link ao professor.', 'err', 6000);
+      return true;
+    }
+    const res = SH.store.acceptInvite(data);
+    if (!res.ok) { SH.auth.render(root()); SH.util.toast(res.message, 'err', 6000); return true; }
+    const msg = res.status === 'created' ? 'Sua conta foi ativada neste aparelho, ' + SH.util.esc(SH.util.firstName(data.name)) + '. Entre com a senha que você recebeu do Gabriel.'
+      : res.status === 'updated' ? 'Sua senha foi atualizada pelo professor. Entre com a nova senha que você recebeu.'
+      : 'Sua conta já está ativa neste aparelho. É só entrar com seu e-mail e senha.';
+    SH.auth.render(root(), { email: data.email, notice: msg });
+    return true;
+  }
+
   function boot() {
     runLeaveHooks();
     shellUserId = null;
+    if (handleInvite()) return;
     const user = SH.store.currentUser();
     if (!user) {
       SH.auth.render(root());
@@ -90,9 +114,14 @@ window.SH = window.SH || {};
     shellUserId = null;
     if (!location.hash || location.hash === '#' || location.hash === '#/') location.hash = '#/home';
     else route();
+    const u = SH.store.currentUser();
+    if (u && u.mustChangePassword) setTimeout(() => SH.auth.promptNewPassword(u), 350);
   }
 
-  window.addEventListener('hashchange', () => { if (SH.store.currentUser()) route(); });
+  window.addEventListener('hashchange', () => {
+    if (location.hash.indexOf('#/convite/') === 0) { boot(); return; }
+    if (SH.store.currentUser()) route();
+  });
 
   SH.app = {
     boot, enter, notFound,

@@ -83,6 +83,14 @@ window.SH = window.SH || {};
     return 'fnv:' + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
   }
 
+  /** Senha temporária legível: duas palavras + 4 dígitos (ex.: chunk-river-4827) */
+  const WORDS = ['chunk', 'river', 'coffee', 'bridge', 'travel', 'garden', 'window', 'pencil', 'rocket', 'summer', 'planet', 'orange', 'castle', 'meadow', 'harbor', 'violet', 'canyon', 'falcon', 'lemon', 'island', 'forest', 'marble', 'velvet', 'thunder'];
+  function generatePassword() {
+    const r = new Uint32Array(3);
+    (window.crypto || {}).getRandomValues ? crypto.getRandomValues(r) : r.forEach((_, i) => { r[i] = Math.floor(Math.random() * 1e9); });
+    return WORDS[r[0] % WORDS.length] + '-' + WORDS[r[1] % WORDS.length] + '-' + String(1000 + (r[2] % 9000));
+  }
+
   const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim());
 
   /* ---------- Toasts ---------- */
@@ -188,6 +196,6 @@ window.SH = window.SH || {};
 
   SH.util = {
     esc, uid, dayKey, keyToDate, daysBetweenKeys, daysAgoDate, fmtDate, fmtDateTime, relDays,
-    initials, firstName, hashPassword, isEmail, toast, modal, download, reducedMotion, countUp,
+    initials, firstName, hashPassword, generatePassword, isEmail, toast, modal, download, reducedMotion, countUp,
   };
 })(window.SH);

@@ -34,6 +34,15 @@ O portal funciona abrindo o arquivo direto. Para um servidor local:
 6. **Agenda, Tarefas e Caderno:** calendário, action plan com prioridades e anotações compartilháveis com o professor.
 7. **Central do Professor:** visão da turma, dossiê individual, mapa de fragilidades, pauta automática e notas privadas.
 
+## Cadastro de alunos pelo professor
+Na **Central do Professor**, o botão **Cadastrar aluno** cria a conta com login (e-mail) e senha individuais. Em seguida o portal mostra:
+- as credenciais e um **link de acesso individual** (`#/convite/...`);
+- botões para copiar a mensagem pronta, copiar o link ou enviar pelo WhatsApp.
+
+Ao abrir o link, a conta é ativada no aparelho do aluno e ele entra com o e-mail e a senha recebidos. No primeiro acesso, ele é convidado a criar uma senha pessoal. No dossiê do aluno, o professor pode gerar o link de novo, **redefinir a senha** (o novo link atualiza a senha no aparelho do aluno) ou **remover o aluno**.
+
+Para o link funcionar em outro aparelho, o portal precisa estar publicado online (GitHub Pages, Netlify, Vercel). Aberto como arquivo local, o link só funciona no próprio computador.
+
 Contas demo (1 clique ou senha `demo1234`): Gabriel Florencio (professor), Julia Martins (A2) e Renan Albuquerque (B1).
 
 ## Estrutura

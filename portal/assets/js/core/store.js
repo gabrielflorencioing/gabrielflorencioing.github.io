@@ -101,18 +101,89 @@ window.SH = window.SH || {};
     save();
   }
 
-  async function createStudent({ name, email, password, level, goal, location }) {
+  async function createStudent({ name, email, password, level, goal, location, createdBy = 'self' }) {
     const user = normalizeUser({
       id: U.uid('usr'),
       role: 'student',
       name: name.trim(),
       email: email.trim().toLowerCase(),
       passwordHash: await U.hashPassword(password, email.trim()),
+      passwordIssuedAt: new Date().toISOString(),
+      mustChangePassword: createdBy === 'teacher',
+      createdBy,
       level, goal, location,
     });
     state.users[user.id] = user;
     save();
     return user;
+  }
+
+  /** Define uma nova senha. mustChange = true quando o professor gera uma senha temporária. */
+  async function setPassword(id, password, mustChange = false) {
+    const u = getUser(id);
+    if (!u) return null;
+    const hash = await U.hashPassword(password, u.email);
+    return updateUser(id, (x) => {
+      x.passwordHash = hash;
+      x.passwordIssuedAt = new Date().toISOString();
+      x.mustChangePassword = mustChange;
+    });
+  }
+
+  function removeStudent(id) {
+    const u = getUser(id);
+    if (!u || u.role !== 'student') return false;
+    delete state.users[id];
+    if (state.session.userId === id) state.session.userId = null;
+    save();
+    return true;
+  }
+
+  /* ---------- Link de acesso individual (leva a conta para o aparelho do aluno) ---------- */
+  const b64urlEncode = (str) => btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const b64urlDecode = (str) => decodeURIComponent(escape(atob(str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4))));
+
+  function buildInvite(id) {
+    const u = getUser(id);
+    if (!u) return null;
+    const data = {
+      v: 1, app: APP_ID, id: u.id, name: u.name, email: u.email, passwordHash: u.passwordHash,
+      passwordIssuedAt: u.passwordIssuedAt, mustChangePassword: !!u.mustChangePassword,
+      level: u.level, goal: u.goal, location: u.location, createdAt: u.createdAt,
+    };
+    return b64urlEncode(JSON.stringify(data));
+  }
+
+  function parseInvite(token) {
+    try {
+      const d = JSON.parse(b64urlDecode(token));
+      if (d.app !== APP_ID || !d.email || !d.name || !d.passwordHash) return null;
+      return d;
+    } catch (e) { return null; }
+  }
+
+  /** Cria a conta no aparelho do aluno, ou atualiza a senha se o convite for mais recente. */
+  function acceptInvite(d) {
+    const existing = findByEmail(d.email);
+    if (existing) {
+      if (existing.role !== 'student') return { ok: false, message: 'Este e-mail pertence a outra conta neste aparelho.' };
+      if ((d.passwordIssuedAt || '') > (existing.passwordIssuedAt || '')) {
+        updateUser(existing.id, (x) => {
+          x.passwordHash = d.passwordHash; x.passwordIssuedAt = d.passwordIssuedAt; x.mustChangePassword = d.mustChangePassword;
+        });
+        return { ok: true, user: existing, status: 'updated' };
+      }
+      return { ok: true, user: existing, status: 'exists' };
+    }
+    const user = normalizeUser({
+      id: state.users[d.id] ? U.uid('usr') : d.id,
+      role: 'student', name: d.name, email: d.email, passwordHash: d.passwordHash,
+      passwordIssuedAt: d.passwordIssuedAt, mustChangePassword: d.mustChangePassword, createdBy: 'teacher',
+      level: d.level, goal: d.goal, location: d.location, createdAt: d.createdAt,
+    });
+    state.users[user.id] = user;
+    save();
+    return { ok: true, user, status: 'created' };
   }
 
   async function authenticate(email, password) {
@@ -425,7 +496,7 @@ window.SH = window.SH || {};
     get persistent() { return persistent; },
     onChange: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
     getUser, currentUser, allUsers, students, findByEmail, setSession,
-    createStudent, authenticate, updateUser,
+    createStudent, authenticate, updateUser, setPassword, removeStudent, buildInvite, parseInvite, acceptInvite,
     recordReading, recordGame, summary, streak, markActivity,
     exportJSON, inspectBackup, importBackup, resetDemoUsers,
     demoIds: { teacher: DEMO.teacher.id, julia: DEMO.julia.id, renan: DEMO.renan.id },

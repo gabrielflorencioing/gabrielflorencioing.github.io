@@ -11,7 +11,7 @@ window.SH = window.SH || {};
     { key: 'renan', role: 'Aluno · Nível B1', tag: 'Fluência profissional', desc: 'Sequência ativa de estudos, atenção em Phrasal Verbs e condicionais.' },
   ];
 
-  function render(root, { mode = 'login' } = {}) {
+  function render(root, { mode = 'login', email = '', notice = '' } = {}) {
     document.title = 'Entrar · Students Hub | Gabriel Florencio';
     const demoUsers = SH.store.demoIds;
     root.innerHTML = `
@@ -39,7 +39,8 @@ window.SH = window.SH || {};
               <button class="seg__btn ${mode === 'login' ? 'is-active' : ''}" role="tab" aria-selected="${mode === 'login'}" data-mode="login">Entrar</button>
               <button class="seg__btn ${mode === 'signup' ? 'is-active' : ''}" role="tab" aria-selected="${mode === 'signup'}" data-mode="signup">Criar conta de aluno</button>
             </div>
-            <div class="auth__form-host">${mode === 'login' ? loginForm() : signupForm()}</div>
+            ${notice ? `<p class="note note--ok">${SH.icon('check')}<span>${notice}</span></p>` : ''}
+            <div class="auth__form-host">${mode === 'login' ? loginForm(email) : signupForm()}</div>
           </div>
 
           <div class="auth__demo">
@@ -82,7 +83,8 @@ window.SH = window.SH || {};
       e.preventDefault();
       if (mode === 'login') onLogin(form); else onSignup(form);
     });
-    const first = form.querySelector('input');
+    if (notice) setTimeout(() => root.querySelector('.auth__card').scrollIntoView({ block: 'start' }), 50);
+    const first = email ? form.querySelector('#login-pass') : form.querySelector('input');
     if (first && window.innerWidth > 900) first.focus();
   }
 
@@ -94,12 +96,12 @@ window.SH = window.SH || {};
       <p class="field__error" id="${id}-err" role="alert"></p>
     </div>`;
 
-  function loginForm() {
+  function loginForm(email = '') {
     return `
       <form class="form" novalidate>
         <h2 class="form__title">Bem-vindo de volta</h2>
         <p class="form__sub">Entre com o e-mail e a senha da sua conta.</p>
-        ${field('login-email', 'E-mail', '<input id="login-email" name="email" type="email" autocomplete="email" inputmode="email" aria-describedby="login-email-err" required>')}
+        ${field('login-email', 'E-mail', `<input id="login-email" name="email" type="email" autocomplete="email" inputmode="email" aria-describedby="login-email-err" required value="${esc(email)}">`)}
         ${field('login-pass', 'Senha', '<input id="login-pass" name="password" type="password" autocomplete="current-password" aria-describedby="login-pass-err" required>')}
         <button class="btn btn--primary btn--block" type="submit">Entrar no portal</button>
       </form>`;
@@ -189,5 +191,33 @@ window.SH = window.SH || {};
     SH.util.toast('Conta criada. Bem-vinda(o) ao Students Hub, ' + SH.util.firstName(user.name) + '!', 'ok');
   }
 
-  SH.auth = { render };
+  /** Pede ao aluno que troque a senha temporária criada pelo professor */
+  function promptNewPassword(user) {
+    const m = SH.util.modal({
+      title: 'Crie a sua senha pessoal',
+      html: `
+        <p>Olá, ${esc(SH.util.firstName(user.name))}! Você entrou com a senha temporária enviada pelo Gabriel. Para proteger seu acesso, escolha uma senha só sua.</p>
+        <form class="form form--tight" id="np-form" novalidate>
+          <div class="field" data-field="np1"><label for="np1">Nova senha</label><input id="np1" type="password" autocomplete="new-password" minlength="6"><p class="field__hint">Mínimo de 6 caracteres.</p><p class="field__error" role="alert"></p></div>
+          <div class="field" data-field="np2"><label for="np2">Repita a nova senha</label><input id="np2" type="password" autocomplete="new-password"><p class="field__error" role="alert"></p></div>
+        </form>`,
+      actions: [
+        { label: 'Fazer isso depois', variant: 'ghost' },
+        {
+          label: 'Salvar nova senha', variant: 'primary',
+          onClick: (close) => {
+            const form = m.el.querySelector('#np-form');
+            const a = form.querySelector('#np1').value, b = form.querySelector('#np2').value;
+            setError(form, 'np1', ''); setError(form, 'np2', '');
+            if (a.length < 6) { setError(form, 'np1', 'A senha precisa ter pelo menos 6 caracteres.'); return false; }
+            if (a !== b) { setError(form, 'np2', 'As senhas não são iguais.'); return false; }
+            SH.store.setPassword(user.id, a, false).then(() => { close(); SH.util.toast('Senha pessoal criada com sucesso.', 'ok'); });
+            return false;
+          },
+        },
+      ],
+    });
+  }
+
+  SH.auth = { render, promptNewPassword };
 })(window.SH);

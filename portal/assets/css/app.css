@@ -1029,3 +1029,21 @@ i.ev--reminder, .ev--reminder .ev__date { background: #2E9E6B; }
   .stats { grid-template-columns: 1fr; }
   .pill--streak { display: none; }
 }
+
+/* ---------- Cadastro e acesso de alunos ---------- */
+.page-head > .btn { flex: none; }
+.pass-row { display: flex; gap: 8px; align-items: center; }
+.pass-row input { flex: 1; min-width: 0; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; letter-spacing: .02em; }
+.cred strong { overflow-wrap: anywhere; text-align: right; }
+.cred__pass { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; background: var(--yel-soft); padding: 2px 8px; border-radius: 8px; }
+.wa-link { justify-self: start; }
+.access-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.btn--danger { color: var(--err); border-color: var(--err-line); background: var(--surface); }
+.btn--danger:hover { border-color: var(--err); background: var(--err-soft); }
+.note--ok { background: var(--ok-soft); margin: 16px 0 0; }
+.note--ok .ico { color: var(--ok); }
+@media (max-width: 600px) {
+  .pass-row { flex-wrap: wrap; }
+  .pass-row .btn { width: 100%; }
+  .page-head > .btn { width: 100%; }
+}

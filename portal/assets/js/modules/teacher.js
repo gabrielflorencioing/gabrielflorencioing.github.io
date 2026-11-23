@@ -30,7 +30,8 @@ window.SH = window.SH || {};
           <p class="eyebrow">Módulo 7 · Exclusivo Gabriel Florencio</p>
           <h1 class="page-title">Central de Inteligência do Professor</h1>
           <p class="lead">Visão panorâmica da turma. Selecione um aluno para abrir o dossiê completo, o mapa de fragilidades e a pauta sugerida para a próxima aula.</p>
-        </div></header>
+        </div>
+        <button class="btn btn--primary" data-register>${SH.icon('plus')}Cadastrar aluno</button></header>
         <section class="stats" aria-label="Indicadores da turma">
           <div class="stat"><span class="stat__icon stat__icon--lil">${SH.icon('users')}</span><span class="stat__num">${studs.length}</span><span class="stat__lbl">alunos cadastrados</span></div>
           <div class="stat"><span class="stat__icon stat__icon--mint">${SH.icon('target')}</span><span class="stat__num">${avg == null ? '<small>sem dados</small>' : avg + '<small>%</small>'}</span><span class="stat__lbl">acerto médio em leitura</span></div>
@@ -58,6 +59,107 @@ window.SH = window.SH || {};
             </a></li>`).join('')}</ul>` : '<div class="empty"><p>Nenhum aluno cadastrado neste navegador ainda.</p></div>'}
         </section>
       </div>`;
+    main.querySelector('[data-register]').addEventListener('click', () => registerModal(main));
+  }
+
+  /* =========================================================
+   * CADASTRO DE ALUNO E CREDENCIAIS INDIVIDUAIS
+   * ========================================================= */
+  const inviteURL = (id) => location.href.split('#')[0] + '#/convite/' + SH.store.buildInvite(id);
+
+  function registerModal(main) {
+    const goals = Object.entries(SH.labels.GOALS).filter(([k]) => k !== 'teaching');
+    const m = U.modal({
+      title: 'Cadastrar novo aluno',
+      html: `
+        <p class="muted">Defina o login e a senha individuais. Depois do cadastro você recebe a mensagem pronta e o link de acesso para enviar ao aluno.</p>
+        <form class="form form--tight" id="rg-form" novalidate>
+          <div class="field" data-field="rg-name"><label for="rg-name">Nome completo</label><input id="rg-name" autocomplete="off" maxlength="80"><p class="field__error" role="alert"></p></div>
+          <div class="field" data-field="rg-email"><label for="rg-email">E-mail (login do aluno)</label><input id="rg-email" type="email" inputmode="email" autocomplete="off"><p class="field__error" role="alert"></p></div>
+          <div class="field" data-field="rg-pass"><label for="rg-pass">Senha inicial</label>
+            <div class="pass-row"><input id="rg-pass" type="text" autocomplete="off" value="${U.generatePassword()}" spellcheck="false"><button type="button" class="btn btn--ghost btn--sm" data-gen>${SH.icon('refresh')}Gerar outra</button></div>
+            <p class="field__hint">Mínimo de 6 caracteres. Você pode digitar uma senha própria.</p><p class="field__error" role="alert"></p></div>
+          <div class="form__row">
+            <div class="field"><label for="rg-level">Nível</label><select id="rg-level">${Object.values(C().LEVELS).map((l) => `<option value="${l.code}">${l.name}</option>`).join('')}</select></div>
+            <div class="field"><label for="rg-loc">Onde mora</label><select id="rg-loc">${Object.entries(SH.labels.LOCATIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+          </div>
+          <div class="field"><label for="rg-goal">Objetivo principal</label><select id="rg-goal">${goals.map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+          <label class="switch"><input type="checkbox" id="rg-change" checked><span class="switch__track" aria-hidden="true"></span><span>Pedir ao aluno para criar a própria senha no primeiro acesso</span></label>
+        </form>`,
+      actions: [
+        { label: 'Cancelar', variant: 'ghost' },
+        {
+          label: 'Cadastrar aluno', variant: 'primary',
+          onClick: (close) => {
+            const f = m.el.querySelector('#rg-form');
+            const val = (id) => f.querySelector('#' + id).value.trim();
+            const err = (id, msg) => {
+              const w = f.querySelector(`[data-field="${id}"]`);
+              w.classList.toggle('has-error', !!msg); w.querySelector('.field__error').textContent = msg || '';
+            };
+            ['rg-name', 'rg-email', 'rg-pass'].forEach((id) => err(id, ''));
+            const name = val('rg-name'), email = val('rg-email'), password = val('rg-pass');
+            let bad = false;
+            if (name.split(/\s+/).filter(Boolean).length < 2) { err('rg-name', 'Digite nome e sobrenome.'); bad = true; }
+            if (!U.isEmail(email)) { err('rg-email', 'Digite um e-mail válido.'); bad = true; }
+            else if (SH.store.findByEmail(email)) { err('rg-email', 'Já existe uma conta com este e-mail.'); bad = true; }
+            if (password.length < 6) { err('rg-pass', 'A senha precisa ter pelo menos 6 caracteres.'); bad = true; }
+            if (bad) return false;
+            const mustChange = f.querySelector('#rg-change').checked;
+            SH.store.createStudent({
+              name, email, password, createdBy: 'teacher',
+              level: val('rg-level'), goal: val('rg-goal'), location: val('rg-loc'),
+            }).then((u) => {
+              if (!mustChange) SH.store.updateUser(u.id, (x) => { x.mustChangePassword = false; });
+              close();
+              renderOverview(main);
+              showAccess(u.id, password, 'Aluno cadastrado');
+            });
+            return false;
+          },
+        },
+      ],
+    });
+    m.el.querySelector('[data-gen]').addEventListener('click', () => { m.el.querySelector('#rg-pass').value = U.generatePassword(); });
+    m.el.querySelector('#rg-form').addEventListener('input', (e) => {
+      const w = e.target.closest('[data-field]');
+      if (w) { w.classList.remove('has-error'); w.querySelector('.field__error').textContent = ''; }
+    });
+    setTimeout(() => m.el.querySelector('#rg-name').focus(), 60);
+  }
+
+  /** Mostra as credenciais e o link de acesso individual, com mensagem pronta para enviar */
+  function showAccess(id, password, title = 'Acesso do aluno') {
+    const s = SH.store.getUser(id);
+    const link = inviteURL(id);
+    const msg = 'Olá, ' + U.firstName(s.name) + '! Seu acesso ao Students Hub, o portal do aluno da Mentoria Gabriel Florencio, está pronto.\n\n' +
+      '1. Abra este link no seu celular ou computador: ' + link + '\n' +
+      '2. Entre com o e-mail: ' + s.email + '\n' +
+      (password ? '3. Senha: ' + password + '\n' : '3. Use a senha que combinamos.\n') +
+      (s.mustChangePassword ? '\nNo primeiro acesso, você vai criar uma senha só sua.' : '') + '\n\nBons estudos!';
+    const copy = (text, ok) => {
+      const done = () => U.toast(ok, 'ok');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+      else fallbackCopy(text, done);
+    };
+    const m = U.modal({
+      title,
+      html: `
+        <ul class="kv cred">
+          <li><span>Aluno</span><strong>${esc(s.name)}</strong></li>
+          <li><span>Login (e-mail)</span><strong>${esc(s.email)}</strong></li>
+          <li><span>Senha</span><strong class="cred__pass">${password ? esc(password) : 'não exibida (já definida)'}</strong></li>
+        </ul>
+        <div class="field"><label for="acc-link">Link de acesso individual</label><input id="acc-link" readonly value="${esc(link)}"></div>
+        <p class="note">${SH.icon('info')}<span>Envie o link ao aluno. Ao abri-lo, a conta dele é ativada no aparelho e ele entra com o e-mail e a senha acima. ${password ? 'Anote a senha agora: por segurança ela fica guardada apenas de forma criptografada e não aparece de novo.' : ''}</span></p>
+        ${location.protocol === 'file:' ? `<p class="note note--warn">${SH.icon('alert')}<span>O portal está aberto como arquivo no seu computador, então este link só funciona aqui. Publique a pasta do portal online (GitHub Pages, Netlify ou Vercel) para o link abrir no aparelho do aluno.</span></p>` : ''}
+        <a class="btn btn--ghost btn--sm wa-link" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Enviar pelo WhatsApp</a>`,
+      actions: [
+        { label: 'Copiar link', variant: 'ghost', onClick: () => { copy(link, 'Link copiado.'); return false; } },
+        { label: 'Copiar mensagem para o aluno', variant: 'primary', onClick: () => { copy(msg, 'Mensagem com login, senha e link copiada.'); return false; } },
+      ],
+    });
+    m.el.querySelector('#acc-link').addEventListener('focus', (e) => e.target.select());
   }
 
   /* =========================================================
@@ -183,6 +285,19 @@ window.SH = window.SH || {};
         </div>
 
         <section class="card">
+          <div class="card__head"><h2 class="card__title">${SH.icon('user')}Acesso do aluno</h2><span class="muted small">${s.createdBy === 'teacher' ? 'Cadastrado pelo professor' : s.demo ? 'Conta de demonstração' : 'Cadastro feito pelo aluno'}</span></div>
+          <ul class="kv">
+            <li><span>Login (e-mail)</span><strong>${esc(s.email)}</strong></li>
+            <li><span>Senha</span><strong>${s.mustChangePassword ? 'Temporária, aguardando o aluno criar a dele' : s.passwordIssuedAt ? 'Definida em ' + U.fmtDate(s.passwordIssuedAt) : 'Definida'}</strong></li>
+          </ul>
+          <div class="access-actions">
+            <button class="btn btn--soft btn--sm" data-acc="link">${SH.icon('arrowRight')}Gerar link de acesso</button>
+            <button class="btn btn--soft btn--sm" data-acc="reset">${SH.icon('refresh')}Redefinir senha</button>
+            <button class="btn btn--ghost btn--sm btn--danger" data-acc="remove">${SH.icon('close')}Remover aluno</button>
+          </div>
+        </section>
+
+        <section class="card">
           <div class="card__head"><h2 class="card__title">${SH.icon('lock')}Notas privadas do professor</h2><span class="muted small" id="tn-status">Visível apenas para você</span></div>
           <label class="sr-only" for="tn">Notas privadas sobre ${esc(s.name)}</label>
           <textarea id="tn" class="teacher-notes" rows="6" placeholder="Observações pedagógicas, combinados e percepções sobre o aluno.">${esc(s.teacherNotes || '')}</textarea>
@@ -201,6 +316,34 @@ window.SH = window.SH || {};
       }, 500);
     });
     SH.app.onLeave(() => { clearTimeout(t); const el = document.getElementById('tn'); if (el) SH.store.updateUser(s.id, (x) => { x.teacherNotes = el.value; }); });
+    main.querySelectorAll('[data-acc]').forEach((b) => b.addEventListener('click', () => {
+      const act = b.dataset.acc;
+      if (act === 'link') showAccess(s.id, null);
+      if (act === 'reset') {
+        const pw = U.generatePassword();
+        U.modal({
+          title: 'Redefinir senha',
+          html: `<p>Uma nova senha temporária será criada para <strong>${esc(s.name)}</strong>. A senha atual deixa de funcionar e o aluno cria uma senha pessoal no próximo acesso.</p>`,
+          actions: [
+            { label: 'Cancelar', variant: 'ghost' },
+            { label: 'Gerar nova senha', variant: 'primary', onClick: (close) => {
+              SH.store.setPassword(s.id, pw, true).then(() => { close(); renderDossier(main, s.id); showAccess(s.id, pw, 'Nova senha gerada'); });
+              return false;
+            } },
+          ],
+        });
+      }
+      if (act === 'remove') {
+        U.modal({
+          title: 'Remover aluno',
+          html: `<p>A conta de <strong>${esc(s.name)}</strong> e todo o histórico dela serão apagados deste navegador. Isso não pode ser desfeito.</p><p class="note note--warn">${SH.icon('alert')}<span>Se quiser guardar o histórico, use "Exportar Dados (JSON)" no menu antes de remover.</span></p>`,
+          actions: [
+            { label: 'Cancelar', variant: 'ghost' },
+            { label: 'Remover definitivamente', variant: 'danger', onClick: () => { SH.store.removeStudent(s.id); U.toast('Aluno removido.', 'info'); location.hash = '#/teacher'; } },
+          ],
+        });
+      }
+    }));
     main.querySelector('[data-copy]').addEventListener('click', () => {
       const text = 'Pauta da próxima aula: ' + s.name + '\n\n' + plan.map((p, i) => (i + 1) + '. ' + p.title + '\n' + p.text).join('\n\n');
       const done = () => U.toast('Pauta copiada para a área de transferência.', 'ok');
